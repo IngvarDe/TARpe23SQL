@@ -248,3 +248,162 @@ values
 
 select * from Employees
 select * from Department
+
+--rida 239
+
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department
+on Employees.DepartmentId = Department.Id
+
+select * from Employees
+--arvutab k]ikide palgad kokku
+select sum(cast(Salary as int)) from Employees
+-- min palga saaja
+select min(cast(Salary as int)) from Employees
+-- [he kuu palgafond linna lõikes
+select City, sum(cast(Salary as int)) as TotalSalary
+from Employees
+group by City
+
+alter table Employees
+add City nvarchar(30)
+
+--sooline erisus palga osas
+select City, Gender, sum(cast(Salary as int)) as TotalSalary
+from Employees
+group by City, Gender
+
+--linnad t'hestikulises j'rjestuses
+select City, Gender, sum(cast(Salary as int)) as TotalSalary
+from Employees
+group by City, Gender
+order by City
+
+-- loeb ära, mitu inimest on nimekirjas
+select count(*) from Employees
+
+--mitu töötajat on soo ja linna kaupa
+select City, Gender, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employee(s)]
+from Employees
+group by Gender, City
+
+--tahame ainult k]ik meessoost isikud linnade kaupa
+select City, Gender, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employee(s)]
+from Employees
+where Gender = 'Male'
+group by Gender, City
+
+-- isikud, kelle palk on üle 4000
+select * from Employees where sum(cast(Salary as int)) > 4000
+
+-- tuleb kasutada having
+select Gender, City, sum(cast(Salary as int)) as TotalSalary, 
+count (Id) as [Total Employee(s)]
+from Employees group by Gender, City
+having sum(cast(Salary as int)) > 4000
+
+--loome tabeli, milles hakatakse automaatselt nummerdama Id-d
+create table Test1
+(
+Id int identity(1,1),
+Value nvarchar(20)
+)
+
+insert into Test1 values ('X')
+
+select * from Test1
+
+--kustutame veeru nimega City Employees tabelist
+alter table Employees
+drop column City
+
+--inner join
+--näitab neid, kellel on DepartmentName all olemas väärtus
+select Name, Gender, Salary, DepartmentName
+from Employees
+inner join Department
+on Employees.DepartmentId = Department.Id
+
+--left join
+--1. kuidas saada kõik andmend Employees tabelist kätte
+--2. tagastab kattuvad read ja kõik mitte-kattuvad 
+--read vasakust tabelist
+select Name, Gender, Salary, DepartmentName
+from Employees
+LEFT JOIN Department --võib kasutada ka LEFT OUTER JOIN-i
+on Employees.DepartmentId = Department.Id
+
+--kuidas saada DeparmtentName alla uus nimetus e antud
+--juhul Other Department
+--right join
+--tagastab kõik kattuvad read ja kõik mitte-katuvad read 
+--paremast tabelist
+select Name, Gender, Salary, DepartmentName
+from Employees
+right join Department --võib kasutada ka RIGHT OUTER JOIN-i
+on Employees.DepartmentId = Department.Id
+
+-- kuidas saada kõikide tabelite väärtused ühte päringusse
+select Name, Gender, Salary, DepartmentName
+from Employees
+full outer join Department
+on Employees.DepartmentId = Department.Id
+
+--cross join v]tab kaks allpool olevat tabelit kokku
+--ja korrutab need omavahel
+select Name, Gender, Salary, DepartmentName
+from Employees
+cross join Department
+
+--päringu sisu näide
+select Veerud
+from VasakTabel
+joini tüüp  ParemTabel
+on Joinitingimus
+
+--kuidas näidata ainult nees isikud, kellel on
+--DepartmentName NULL
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+--teine variant
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department
+on Employees.DepartmentId = Department.Id
+where Department.Id is null
+
+--kuidas saame Department tabelis oleva rea, kus on NULL
+select Name, Gender, Salary, DepartmentName
+from Employees
+right join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+
+--full join
+--mõlema tabeli mitte-kattuvate väärtustega read kuvab välja
+select Name, Gender, Salary, DepartmentName
+from Employees
+full join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+or Department.Id is null
+
+-- muudame tabeli nimetust, alguses vana tabeli nimi
+-- ja siis uus soovitud
+sp_rename 'Department123', 'Department'
+
+--kasutame Employees tabeli asemel muutujat E ja M
+select E.Name as Employee, M.Name as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+alter table Employees
+add ManagerId int
+
