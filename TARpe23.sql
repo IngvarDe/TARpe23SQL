@@ -407,3 +407,240 @@ on E.ManagerId = M.Id
 alter table Employees
 add ManagerId int
 
+--inner join
+--kuvab ainult ManagerId all olevate isikute v''rtuseid
+select E.Name as Employee, M.Name as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+--k]ik saavad k]ikide [lemused olla
+select E.Name as Employee, M.Name as Manager
+from Employees E
+cross join Employees M
+
+select isnull('Ingvar', 'No Manager') as Manager
+
+--NULL asemel kuvab No Manager
+select coalesce(NULL, 'No Manager') as Manager
+
+-- kui Expression on ]ige, siis paneb v''rtuse,
+-- mida soovid v]i m]ne teise v''rtuse
+case when Expression then '' else '' end
+
+---neil kellel ei ole [lemust, siis paneb neile No Manager teksti
+select E.Name as Employee, isnull(M.Name, 'No Manager') as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+--teeme p'ringu, kus kasutame case-i
+select E.Name as Employee, case when M.Name is null then 'No Manager'
+else M.Name end as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+--lisame tabelisse Employees kaks veergu ja nimed on MiddleName ning LastName
+--m]lemad on nvarchar(30)
+
+alter table Employees
+add MiddleName nvarchar(30),
+LastName nvarchar(30)
+
+--muudame ja lisame andmeid
+update Employees
+set Name = 'Tom', MiddleName = 'Nick', LastName = 'Jones'
+where Id = 1
+
+update Employees
+set Name = 'Pam', MiddleName = NULL, LastName = 'Anderson'
+where Id = 2
+
+update Employees
+set Name = 'John', MiddleName = NULL, LastName = NULL
+where Id = 3
+
+update Employees
+set Name = 'Sam', MiddleName = NULL, LastName = 'Smith'
+where Id = 4
+
+update Employees
+set Name = NULL, MiddleName = 'Todd', LastName = 'Someone'
+where Id = 5
+
+update Employees
+set Name = 'Ben', MiddleName = 'Ten', LastName = 'Sven'
+where Id = 6
+
+update Employees
+set Name = 'Sara', MiddleName = NULL, LastName = 'Connor'
+where Id = 7
+
+update Employees
+set Name = 'Valarie', MiddleName = 'Balerine', LastName = NULL
+where Id = 8
+
+update Employees
+set Name = 'James', MiddleName = '007', LastName = 'Bond'
+where Id = 9
+
+update Employees
+set Name = NULL, MiddleName = NULL, LastName = 'Crowe'
+where Id = 10
+
+select * from Employees
+
+--igast reast v]tab esimesena t'idetud lahtri ja kuvab ainult seda v''rtust
+select Id, coalesce(Name, MiddleName, LastName) as Fullname
+from Employees
+
+--loome kaks tabelit juurde
+create table IndianCustomers
+(
+Id int identity(1,1),
+Name nvarchar(25),
+Email nvarchar(25)
+)
+
+create table UKCustomers
+(
+Id int identity(1,1),
+Name nvarchar(25),
+Email nvarchar(25)
+)
+
+---sisestame tabelisse andmed
+insert into IndianCustomers (Name, Email) values
+('Raj', 'R@R.com'),
+('Sam', 'S@S.com')
+
+insert into UKCustomers (Name, Email) values
+('Ben', 'B@B.com'),
+('Sam', 'S@S.com')
+
+select * from IndianCustomers
+select * from UKCustomers
+
+-- kasutame union all, n'itab k]iki ridu
+select Id, Name, Email from IndianCustomers
+union all
+select Id, Name, Email from UKCustomers
+
+--korduvate v''rtustega read pannakse [hte ja ei korrata
+select Id, Name, Email from IndianCustomers
+union
+select Id, Name, Email from UKCustomers
+
+--kuidas tulemust sorteerida nime j'rgi
+select Id, Name, Email from IndianCustomers
+union all
+select Id, Name, Email from UKCustomers
+order by Name
+
+-- stored procedure
+create procedure spGetEmployees
+as begin
+	select Name, Gender from Employees
+end
+
+--- n[[d saab kasutada selle nimelist sp-d
+spGetEmployees
+exec spGetEmployees
+execute spGetEmployees
+
+select * from Employees
+
+create proc spGetEmployeesByGenderAndDepartment
+@Gender nvarchar(20),
+@DepartmentId int
+as begin
+	select Name, Gender, DepartmentId from Employees 
+	where Gender = @Gender
+	and DepartmentId = @DepartmentId
+end
+
+-- kui n[[d allolevat k'sklust k'ima panna, siis n]uab Gender parameetrit
+spGetEmployeesByGenderAndDepartment
+--]ige variant
+spGetEmployeesByGenderAndDepartment 'Male', 1
+
+--niimoodi saab sp taheud j'rjekorrast m;;da minna,
+--kui ise paned muutujad paika
+spGetEmployeesByGenderAndDepartment @DepartmentId = 1, @Gender = 'Male'
+
+-- saab vaadata sp sisu result vaates
+sp_helptext spGetEmployeesByGenderAndDepartment
+
+-- kuidas muuta sp-d ja v]ti peale panna, 
+-- et keegi teine peale teie ei saaks muuta
+alter proc spGetEmployeesByGenderAndDepartment
+@Gender nvarchar(20),
+@DepartmentId int
+with encryption --paneb v]tme peale
+as begin
+	select Name, Gender, DepartmentId from Employees where Gender = @Gender
+	and DepartmentId = @DepartmentId
+end
+
+sp_helptext spGetEmployeesByGenderAndDepartment
+
+select * from Employees
+
+create proc spGetEmployeeCountByGender
+@Gender nvarchar(20),
+@EmployeeCount int output
+as begin
+	select @EmployeeCount = count(Id) from Employees where Gender = @Gender
+end
+
+spGetEmployeeCountByGender @Gender = 'Male', @EmployeeCount = 6
+
+-- annab tulemuse, kus loendab 'ra n]uetele vastavad read
+--antud juhul tahtsime teada, et mitu naissoost isikut on tabelis
+declare @TotalCount int
+execute spGetEmployeeCountByGender 'female', @TotalCount out
+if(@TotalCount = 0)
+	print '@TotalCount is null'
+else
+	print '@Total is not null'
+print @TotalCount
+
+--n'itab 'ra, et mitu rida vastab n]uetele
+declare @TotalCount int
+execute spGetEmployeeCountByGender @EmployeeCount = @TotalCount out, @Gender = 'Male'
+print @TotalCount
+
+--vaatame sp sisu
+sp_help spGetEmployeeCountByGender
+-- tabeli info
+sp_help Employees
+-- kui soovid teksti n'ha
+sp_helptext spGetEmployeeCountByGender
+
+--vaatame, millest s]ltub see sp
+sp_depends spGetEmployeeCountByGender
+--vaatame tabelit
+sp_depends Employees
+
+--
+create proc spGetNameById
+@Id int,
+@Name nvarchar(20) output
+as begin
+	select @Name = Id, @Name = Name from Employees
+end
+
+--annab kogu ridade arvu
+create proc spTotalCount2
+@TotalCount int output
+as begin
+	select @TotalCount = count(Id) from Employees
+end
+
+-- annab kogu tabeli ridade arvu
+declare @TotalEmployees int
+execute spTotalCount2 @TotalEmployees output
+select @TotalEmployees
+
+
