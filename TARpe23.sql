@@ -643,4 +643,114 @@ declare @TotalEmployees int
 execute spTotalCount2 @TotalEmployees output
 select @TotalEmployees
 
+--mis id all on keegi nime j'rgi
+create proc spgetnameById1
+@Id int,
+@FirstnName nvarchar(50) output
+as begin
+	select @FirstnName = Name from Employees where Id = @Id
+end
+-- annab tulemuse, kus id 1 real on keegi koos nimega
+declare @FirstName nvarchar(50)
+execute spgetnameById1 1, @FirstName output
+print 'Name of the employee = ' + @FirstName
+
+---
+declare
+@FirstName nvarchar(20)
+execute spgetnameById1 1, @FirstName out
+print 'Name = ' + @FirstName
+
+sp_help spgetnameById1
+
+---
+create proc spGetNameById2
+@Id int
+as begin
+	return (select FirstName from Employees where Id = @Id)
+end
+
+-- tuleb veateade kuna kutsusime v'lja int-i, aga Tom on string
+declare @EmployeeName nvarchar(50)
+execute @EmployeeName = spGetNameById2 1
+print 'Name of the employee = ' + @EmployeeName
+
+---sisseehitatud string funktsioonid
+-- konverteeri ASCII t'he v''rtuse numbriks
+select ASCII('a')
+-- kuvab A-t'he
+select char (65)
+
+--prindime kogu t'hestiku v'lja
+declare @Start int
+set @Start = 97
+while (@Start <= 122)
+begin
+	select char (@Start)
+	set @Start = @Start + 1
+end
+
+-- eemaldame t[hjad kohad vasakul pool sulgudes
+select ltrim('            Hello')
+
+--t[hikute eemaldamine veerust
+select LTRIM(FirstName) as FirstName, MiddleName, LastName from Employees
+
+--paremalt poolt eemaldab k]ik t[hjad kohad
+select RTRIM('        Hello                                    ')
+
+--keerab kooloni sees olevad andmed vastupidiseks
+--vastavalt upper ja lower-ga saan muuta märkide suurust
+--reverse funktsioon pöörab kõik ümber
+select REVERSE(upper(ltrim(FirstName))) as FirstName, MiddleName, lower(LastName),
+RTRIM(ltrim(FirstName)) + ' ' + MiddleName + ' ' + LastName as FullName
+from Employees
+
+-- left, right ja substring
+-- vasakult poolt neli esimest tähte
+select LEFT('ABCDEF', 4)
+--- paremalt poolt kolm tähte
+select Right('ABCDEF', 3)
+
+--kuvab @-t'hem'rki asetust
+select CHARINDEX('@', 'sara@aaa.com')
+
+--esimene nr peale komakohta näitab, et mitmendast alustab 
+--ja siis mitu nr peale seda kuvada
+select SUBSTRING('pam@bbb.com', 5, 2)
+
+--- @märgist kuvab kolm tähemärki. Viimase numriga saab määrata pikkust
+select substring('pam@bbb.com', CHARINDEX('@', 'pam@bbb.com') + 1, 4)
+
+---peale @-märki reguleerin tähemärkide pikkuse näitamist
+select SUBSTRING('pam@bbb.com', CHARINDEX('@', 'pam@bbb.com') + 2,
+LEN('pam@bbb.com') - CHARINDEX('@', 'pam@bbb.com'))
+
+---saame teada domeeninimed emailides
+select substring(Email, CHARINDEX('@', Email) + 1,
+len(Email) - CHARINDEX('@', Email)) as EmailDomain
+from Employees
+
+--lisame uue veeru nimega Email nvarchar(20)
+alter table Employees
+add Email nvarchar(20)
+
+update Employees set Email = 'Tom@aaa.com' where Id = 1
+update Employees set Email = 'Pam@bbb.com' where Id = 2
+update Employees set Email = 'John@aaa.com' where Id = 3
+update Employees set Email = 'Sam@bbb.com' where Id = 4
+update Employees set Email = 'Todd@bbb.com' where Id = 5
+update Employees set Email = 'Ben@ccc.com' where Id = 6
+update Employees set Email = 'Sara@ccc.com' where Id = 7
+update Employees set Email = 'Valarie@aaa.com' where Id = 8
+update Employees set Email = 'James@bbb.com' where Id = 9
+update Employees set Email = 'Russel@bbb.com' where Id = 10
+
+--- lisame *-märgi teatud kohast
+select FirstName, LastName,
+	substring(Email, 1, 2) + REPLICATE('*', 5) + --kõik peale teist tähemmärki paneb viis tärni
+	substring(Email, charindex('@', Email), len(Email) - CHARINDEX('@', Email)+1) as Email -- kuni @-m'rgini on dünaamiline e muutub
+from Employees
+
+-- rida 768
 
