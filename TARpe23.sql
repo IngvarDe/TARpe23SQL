@@ -752,5 +752,124 @@ select FirstName, LastName,
 	substring(Email, charindex('@', Email), len(Email) - CHARINDEX('@', Email)+1) as Email -- kuni @-m'rgini on dünaamiline e muutub
 from Employees
 
--- rida 768
+--- kolm korda n'itab stringis olevat v''rtust
+select replicate('asd ', 3)
+
+-- kuidas sisestada t[hikut kahe nime vahele
+select space(5)
+
+--- t[hikute arv kahe nime vahel
+select FirstName + space(5) + LastName as FullName
+from Employees
+
+---PATINDEX
+-- sama, mis CHARINDEX, aga d[naamilisem ja saab kasutada wildcardi
+select Email, PATINDEX('%@aaa.com', Email) as FirstOccurence
+from Employees
+where PATINDEX('%@aaa.com', Email) > 0 ---leian k]ik selle domeeni esindajad ja 
+-- alates mitmendast m'rgist algab @
+select * from Employees
+
+--- k]ik .com-d asendatakse .net-ga
+select Email, replace(Email, '.com', '.net') as ConvertedEmail
+from Employees
+
+--- soovin asendada peale esimest m'rki kolm t'hte viie t'rniga
+select FirstName, LastName, Email,
+	STUFF(Email, 2, 3, '*****') as StuffedEmail
+from Employees
+
+select * from Employees
+
+---
+create table DateTime
+(
+c_time time,
+c_date date,
+c_smalldatetime smalldatetime,
+c_datetime datetime,
+c_datetime2 datetime2,
+c_datetimeoffset datetimeoffset
+)
+
+select * from DateTime
+
+--- konkreetse masina kellaaeg
+select GETDATE(), 'GETDATE()'
+
+---
+insert into DateTime
+values (getdate(), getdate(), getdate(), getdate(), getdate(), getdate())
+
+-- tabelis aja uuendamine
+update DateTime set c_datetimeoffset = '2024-03-13 23:25:15.8500000 +10:00'
+where c_datetimeoffset = '2024-03-13 09:55:30.1500000 +10:00'
+go
+select * from DateTime
+
+
+select CURRENT_TIMESTAMP, 'CURRENT_TIMESTAMP' --aja p'ring
+select SYSDATETIME(), 'SYSDATETIME' --veel t'psem aja p'ring 
+select SYSDATETIMEOFFSET(), 'SYSDATETIMEOFFSET' ---t'pne aeg koos ajalise nihkega UTC suhtes 
+select GETUTCDATE(), 'GETUTCDATE' --UTC aeg
+
+
+select ISDATE('asd') --tagastab 0 kuna string ei ole date
+select ISDATE(GETDATE()) --tagastab 1 kuna on kp
+select ISDATE('2024-03-13 09:55:30.1500000') -- tagastab 0 kuna max kolm komakohta v]ib olla
+select ISDATE('2024-03-13 09:55:30.150') ---tagastab 1
+select DAY(GETDATE()) ---annab t'nase p'eva nr
+select DAY('01/31/2017') --annab stringis oleva kp ja j'rjestus peab olema ]ige
+select YEAR(GETDATE())  -- annab jooksva aasta nr
+select year('01/31/2024') --annab stringis oleva aasta nr
+
+select DATENAME(DAY, '2024-03-13 09:55:30.150') -- annab stringis oleva p'eva nr
+select DATENAME(WEEKDAY, '2024-03-13 09:55:30.150') --annab stringis oleva p'eva s]nana
+select DATENAME(MONTH, '2024-03-13 09:55:30.150') --annab stringis oleva kuu s]nana
+
+create table EmployeesWithDates
+(
+	Id nvarchar(2),
+	Name nvarchar(20),
+	DateOfBirth datetime
+)
+
+select * from EmployeesWithDates
+
+--- kuidas võtta ühest veerust andmeid ja selle abil luua uued veerud
+select Name, DateOfBirth, datename(weekday, DateOfBirth) as [Day], --- vaatab DOB veerust p'eva ja kuvab p'eva nimetuse s]nana
+	MONTH(DateOfBirth) as MonthNumber, --- vt DOB veerust kp-d ja kuvab kuu nr
+	DATENAME(MONTH, DateOfBirth) as [MonthName], --vt DOB veerust kuud ja kuvab s]nana
+	YEAR(DateOfBirth) as [Year] --v]tab DOB veerust aasta
+from EmployeesWithDates
+
+select DATEPART(WEEKDAY, '2024-03-24 09:55:30.150') -- kuvab 1 kuna USA n'dal algab p[hap'evaga
+select DATEPART(MONTH, '2024-03-24 09:55:30.150') -- kuvab kuu nr
+select DATEADD(DAY, 20, '2024-03-24 09:55:30.150')  --liidab stringis olevale kp 20 p'eva juurde
+select DATEADD(DAY, -20, '2024-03-24 09:55:30.150')  --lahutab stringis olevale kp 20 p'eva juurde
+select DATEDIFF(MONTH, '03/30/2023', '01/30/2023') --kuvab kahe stringis olevate kuudevahelist aega nr-na
+select DATEDIFF(YEAR, '03/30/2023', '01/30/2033') --kuvab kahe stringis olevate aastavahelist aega nr-na
+
+
+create function fnComputeAge(@DOB datetime)
+returns nvarchar(50)
+as begin
+	declare @tempdate datetime, @years int, @months int, @days int
+		select @tempdate = @DOB
+
+		select @years = datediff(year, @tempdate, GETDATE()) - case when (month(@DOB) > MONTH(GETDATE())) or (month(@DOB)
+		= MONTH(GETDATE()) and day(@DOB) > day(GETDATE())) then 1 else 0 end
+		select @tempdate = DATEADD(year, @years, @tempdate)
+
+		select @months = DATEDIFF(MONTH, @tempdate, GETDATE()) - case when day(@DOB) > day(GETDATE()) then 1 else 0 end
+		select @tempdate = DATEADD(MONTH, @months, @tempdate)
+
+		select @days = DATEDIFF(day, @tempdate, GETDATE())
+
+	declare @Age nvarchar(50)
+		set @Age = CAST(@years as nvarchar(4)) + ' Years ' + CAST(@months as nvarchar(2)) +
+			' Months ' + cast(@days as nvarchar(2)) + ' Days old'
+	return @Age
+end
+
 
