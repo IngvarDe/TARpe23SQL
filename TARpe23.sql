@@ -872,4 +872,31 @@ as begin
 	return @Age
 end
 
+-- saame vaadata kasutajate vanust
+select Id, Name, DateOfBirth, dbo.fnComputeAge(DateOfBirth) as Age from EmployeesWithDates
+
+-- kui kasutame seda funktsiooni, siis saame teada t'nase p'eva vahet stringis v'lja tooduga
+select dbo.fnComputeAge('11/11/2010')
+
+--- nr peale DOB muutujat n'itab, et mismoodi kuvada DOB-d
+select Id, Name, DateOfBirth,
+convert(nvarchar, DateOfBirth, 126) as ConvertedDoB
+from EmployeesWithDates
+
+select  Id, Name, Name + ' - ' + cast(Id as nvarchar) as [Name-Id] from EmployeesWithDates
+
+select * from EmployeesWithDates
+
+select cast(getdate() as date) --t'anane kp
+select convert(date, GETDATE()) --t'anane kp
+
+---matemaatilised funktsioonid
+select abs(-101.5) ---abs on absoluutne nr ja tulemuseks saame ilma miinus m'rgita tulemuse
+select CEILING(15.2) -- tagastab 16 ja suurendab suurema t'siarvu suunas
+select CEILING(-15.2) --tagastab -15 ja suurendab suurema positiivse t'siarvu suunas
+select floor(15.2) --[mardab negatiivsema nr poole
+select floor(-15.2) --[mardab negatiivsema nr poole
+select POWER(2, 4)  -- hakkab korrutama 2x2x2x2, esimene nr on astendatav
+select SQUARE(9) --antud juhul 9 ruudus
+select sqrt(81) --annab vastuse 9, ruutjuur
 
