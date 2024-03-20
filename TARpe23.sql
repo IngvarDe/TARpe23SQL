@@ -900,3 +900,122 @@ select POWER(2, 4)  -- hakkab korrutama 2x2x2x2, esimene nr on astendatav
 select SQUARE(9) --antud juhul 9 ruudus
 select sqrt(81) --annab vastuse 9, ruutjuur
 
+select rand() --annab suvalise nr
+select floor(rand() * 100) ---korrutab sajaga iga suvalise nr
+
+--- iga kord n‰itab 10 suvalist nr-t
+declare @counter int
+set @counter = 1
+while (@counter <= 10)
+begin
+	print floor(rand() * 1000)
+	set @counter = @counter + 1
+end
+
+
+select ROUND(850.556, 2)  --¸mardab kaks kohta peale komat, tulemus on 850.560
+select ROUND(850.556, 2, 1) --¸mardab allapoole kaks kohta peale komat, tulemus 850.550
+select ROUND(850.556, 1) --¸mardab ¸lespoole ja vıtab ainult esimest nr peale koma arvesse
+select ROUND(850.556, 1, 1)  --¸mardab alla
+select ROUND(850.556, -2)  --¸mardab t‰isnr ¸lesse
+select ROUND(850.556, -1)  --¸mardab t‰isnr allapoole
+
+
+---
+create function dbo.CalculateAge1 (@DOB date)
+returns int
+as begin
+declare @Age int
+set @Age = DATEDIFF(YEAR, @DOB, GETDATE()) -
+	case
+		when (MONTH(@DOB) > MONTH(GETDATE())) or
+			 (MONTH(@DOB) > MONTH(GETDATE()) and DAY(@DOB) > DAY(GETDATE()))
+		then 1
+		else 0
+		end
+	return @Age
+end
+
+execute CalculateAge1 '11/30/2020'
+
+---arvutab v'lja, kui vana on isik ja v]tab arvesse kuud ja p'evad
+--antud juhul n'itab k]ike, ke son [le 36 a vanad
+select Id, dbo.CalculateAge1(DateOfBirth) as Age from EmployeesWithDates
+where dbo.CalculateAge1(DateOfBirth) > 40
+
+select * from EmployeesWithDates
+
+--- inline table valued functions
+alter table EmployeesWithDates
+add DepartmentId int
+alter table EmployeesWithDates
+add Gender nvarchar(10)
+
+select * from EmployeesWithDates
+
+update EmployeesWithDates set Gender = 'Male', DepartmentId = 1
+where Id = 1
+update EmployeesWithDates set Gender = 'Female', DepartmentId = 2
+where Id = 2
+update EmployeesWithDates set Gender = 'Male', DepartmentId = 1
+where Id = 3
+update EmployeesWithDates set Gender = 'Female', DepartmentId = 3
+where Id = 4
+insert into EmployeesWithDates (Id, Name, DateOfBirth, DepartmentId, Gender)
+values (5, 'Todd', '1978-11-29 12:59:30.670', 1, 'Male')
+
+-- scalare function annab mingis vahemikus olevaid andmeid, aga
+-- inline table values ei kasuta begin ja end funktsioone
+-- scalar annab v‰‰rtused ja inline annab tabeli
+create function fn_EmployeesByGender(@Gender nvarchar(10))
+returns table
+as
+return (select Id, Name, DateOfBirth, DepartmentId, Gender
+		from EmployeesWithDates
+		where Gender = @Gender)
+
+-- k]ik naissoost t;;tajad
+select * from fn_EmployeesByGender('Female')
+
+-- k]ik naissoost ja siis omakorda otsida sealt [lesse Pam
+select * from fn_EmployeesByGender('Female')
+where Name = 'Pam'
+
+-- kahest erinevast tabelist andmete v]tmine ja koos kuvamine
+-- esimene on funktsioon ja teine tabel
+select Name, Gender, DepartmentName
+from fn_EmployeesByGender('Male') E
+join Department D on D.Id = E.DepartmentId
+
+-- inline funktsioon
+create function fn_GetEmployees()
+returns table as
+return (Select Id, Name, cast(DateOfBirth as date)
+		as DOB
+		from EmployeesWithDates)
+
+select * from fn_GetEmployees()
+
+--- multi-state funktsiooni puhul peab defineerima uue tabeli veerud koos muutujatega
+create function fn_MS_GetEmployees()
+returns @Table Table (Id int, Name nvarchar(20), DOB date)
+as begin
+	insert into @Table
+	select Id, Name, Cast(DateOfBirth as date) from EmployeesWithDates
+
+	return
+end
+
+select * from fn_MS_GetEmployees()
+
+-- inline tabeli funktsioonid on paremini t;;tamas kuna k'sitletakse vaatena
+-- multi-table puhul on pm tegemist stored procedure-ga ja kulutab ressurssi rohkem
+
+--muudame andmeid fn_GetEmployees() funktsiooniga
+-- Sam nimi hakkab olema Sam1
+update fn_GetEmployees() set Name = 'Sam1' where Id = 1  -- saab muuta andmeid
+update fn_MS_GetEmployees() set Name = 'Sam 1' where Id = 1 --multi-state puhul ei saa muuta
+
+select * from EmployeesWithDates
+
+
