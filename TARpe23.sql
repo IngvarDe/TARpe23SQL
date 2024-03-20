@@ -1018,4 +1018,4 @@ update fn_MS_GetEmployees() set Name = 'Sam 1' where Id = 1 --multi-state puhul 
 
 select * from EmployeesWithDates
 
-
+--rida 1042
