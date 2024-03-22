@@ -1013,9 +1013,119 @@ select * from fn_MS_GetEmployees()
 
 --muudame andmeid fn_GetEmployees() funktsiooniga
 -- Sam nimi hakkab olema Sam1
-update fn_GetEmployees() set Name = 'Sam1' where Id = 1  -- saab muuta andmeid
-update fn_MS_GetEmployees() set Name = 'Sam 1' where Id = 1 --multi-state puhul ei saa muuta
+update fn_GetEmployees() set Name = 'Sam' where Id = 1  -- saab muuta andmeid
+update fn_MS_GetEmployees() set Name = 'Sam' where Id = 1 --multi-state puhul ei saa muuta
 
 select * from EmployeesWithDates
 
---rida 1042
+-- deteministlikud ja mitte-deterministlikud
+
+select count(*) from EmployeesWithDates
+select SQUARE(3)  --k]ik tehtem'rgid on deterministlikud funktsioonid, sinna kuuluvad veel sum, avg ja square
+
+--mitte-deterministlikud
+select GETDATE()
+select CURRENT_TIMESTAMP
+select rand()  --see funktsioon saab olla mõlemas kategoorias, 
+-- kõik oleneb sellest, kas sulgudes on 1 või ei ole
+
+-- loome funktsiooni
+create function fn_GetNameById(@id int)
+returns nvarchar(30)
+as begin
+	return (select Name from EmployeesWithDates where Id = @id)
+end
+
+select dbo.fn_GetNameById(4)
+
+-- kuidas saab vaadata funktsiooni sisu
+sp_helptext fn_GetNameById
+
+create function fn_GetEmployeeNameById(@id int)
+returns nvarchar(30)
+as begin
+	return (select Name from EmployeesWithDates where Id = @id)
+end
+
+--peale seda ei saa koodi sisu n'ha
+alter function fn_GetEmployeeNameById(@id int)
+returns nvarchar(30)
+with encryption
+as begin
+	return (select Name from EmployeesWithDates where Id = @id)
+end
+
+sp_helptext fn_GetEmployeeNameById
+
+--muudame [levalpool olevat funktsiooni, kindlasti panna tabeli ette dbo.
+--schemabinding seob funktsiooi tabeliga ära
+alter function dbo.fn_GetEmployeeNameById(@id int)
+returns nvarchar(30)
+with schemabinding
+as begin
+	return (select Name from dbo.EmployeesWithDates where Id = @id)
+end
+
+-- ei saa kustutada tabelit ilma funktsiooni kustutamata
+drop table dbo.EmployeesWithDates
+
+---temporary tables
+
+--- #-märgi ette panemisel saame aru, et tegemist on temp table-ga
+--- seda tabelit saab ainult selles päringus avada
+create table #PersonDetails(Id int, Name nvarchar(20))
+--otsida ülesse, kuhu tekkis #PersonDetails tabel?
+insert into #PersonDetails values(1, 'Mike')
+insert into #PersonDetails values(2, 'John')
+insert into #PersonDetails values(3, 'Todd')
+
+select * from #PersonDetails
+
+select Name from sysobjects
+where Name like '#PersonDetails%'
+
+--kuidas saab #PersonDetails tabelit 'ra kustutada
+drop table #PersonDetails
+
+--teeme stored procedure, mis loob meile temp tabeli
+
+create proc spCreateLocalTempTable
+as begin
+	create table #PersonDetails(Id int, Name nvarchar(20))
+
+	insert into #PersonDetails values(1, 'Mike')
+	insert into #PersonDetails values(2, 'John')
+	insert into #PersonDetails values(3, 'Todd')
+
+	select * from #PersonDetails
+end
+
+--k'ivitame stored procedure
+exec spCreateLocalTempTable
+
+---globaalse temp table tegemine
+create table ##PersonDetails(Id int, Name nvarchar(20))
+--mis vahe on globaalsel ja lokaalsel temp tabelil
+
+---index
+create table EmployeeWithSalary
+(
+Id int primary key,
+Name nvarchar(25),
+Salary int,
+Gender nvarchar(10)
+)
+
+insert into EmployeeWithSalary values
+(1, 'Sam', 2500, 'Male'),
+(2, 'Pam', 6500, 'Female'),
+(3, 'John', 4500, 'Male'),
+(4, 'Sara', 5500, 'Female'),
+(5, 'Todd', 3100, 'Male')
+
+select * from EmployeeWithSalary
+
+--kuidas saada tulemus,et n'itab ainult palgad vahemikus 5000 kuni 7000
+
+select * from EmployeeWithSalary
+where Salary >= 5000 and Salary <= 7000
