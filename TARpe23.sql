@@ -1129,3 +1129,229 @@ select * from EmployeeWithSalary
 
 select * from EmployeeWithSalary
 where Salary >= 5000 and Salary <= 7000
+
+---loome indeksi, mis asetab palga kahanevasse järjestusse
+create index IX_EmployeeSalary
+on EmployeeWithSalary(Salary asc)
+
+--- same teada, et mis on selle tabeli primaarvõti ja indeks
+exec sys.sp_helpindex @objname = 'EmployeeWithSalary'
+
+--saame vaadata tabelit koos selle sisuga alates v'ga detailsest infost
+select 
+	TableName = t.name,
+	IndexName = ind.name,
+	IndexId = ind.index_id,
+	ColumnId = ic.index_column_id,
+	ColumnName = col.name,
+	ind.*,
+	ic.*,
+	col.*
+from
+	sys.indexes ind
+inner join
+	sys.index_columns ic on ind.object_id = ic.object_id and ind.index_id = ic.index_id
+inner join
+	sys.columns col on ic.object_id = col.object_id and ic.column_id = col.column_id
+inner join
+	sys.tables t on ind.object_id = t.object_id
+where 
+	ind.is_primary_key = 0
+	and ind.is_unique = 0
+	and ind.is_unique_constraint = 0
+	and t.is_ms_shipped = 0
+order by
+	t.name, ind.name, ind.index_id, ic.is_included_column, ic.key_ordinal;
+
+---indeksi kustutamine
+drop index EmployeeWithSalary.IX_EmployeeSalary
+
+---- indeksi tüübid:
+--1. Klastrites olevad
+--2. Mitte-klastris olevad
+--3. Unikaalsed
+--4. Filtreeritud
+--5. XML
+--6. Täistekst
+--7. Ruumiline
+--8. Veerusäilitav
+--9. Veergude indeksid
+--10. Välja arvatud veergudega indeksid
+
+-- klastris olev indeks määrab ära tabelis oleva füüsilise järjestuse 
+-- ja selle tulemusel saab tabelis olla ainult üks klastris olev indeks
+
+create table EmployeeCity
+(
+Id int primary key,
+Name nvarchar(50),
+Salary int,
+Gender nvarchar(10),
+City nvarchar(50)
+)
+
+-- andmete õige järjestuse loovad klastris olevad indeksid ja kasutab 
+-- selleks Id nr-t
+-- põhjus, miks antud juhul kasutab Id-d, tuleneb primaarvõtmest
+insert into EmployeeCity values(3, 'John', 4500, 'Male', 'New York')
+insert into EmployeeCity values(1, 'Sam', 2500, 'Male', 'London')
+insert into EmployeeCity values(4, 'Sara', 5500, 'Female', 'Tokyo')
+insert into EmployeeCity values(5, 'Todd', 3100, 'Male', 'Toronto')
+insert into EmployeeCity values(2, 'Pam', 6500, 'Male', 'Sydney')
+
+-- klastris olevad indeksid dikteerivad säilitatud andmete järjestuse tabelis 
+-- ja seda saab klastrite puhul olla ainult üks
+
+select * from EmployeeCity
+
+create clustered index IX_EmployeeCity_Name
+on EmployeeCity(Name)
+
+-- annab veateate, et tabelis saab olla aonult üks klastris olev indesk
+-- kui soovid, uut indesksit luua, siis kustuta olemasolev
+
+-- saame luua ainult ühe klastris oleva indeksi tabeli peale
+-- klastris olev indeks on analoogne telefoni suunakoodile
+
+--loome composite indeksi
+--enne tuleb kõik teised klastris olevad indeksid ära kustutada
+
+create clustered index IX_Employee_Gender_Salary
+on EmployeeCity(Gender desc, Salary asc)
+-- kui teed select p'ringu sellele tabelile, siis peaksid n'gema andmeid,
+-- mis on järjestatud selliselt: Esimeseks võetakse aluseks Gender veerg 
+-- kahanevas järjestuses ja siis Salary veerg kasvavas
+
+select * from EmployeeCity
+
+insert into EmployeeCity values(6, 'Valerie', 2500, 'Female', 'Sydney')
+
+drop index EmployeeCity.IX_Employee_Gender_Salary
+
+--- mitte klastris olev indeks
+create nonclustered index IX_EmployeeCity_Name
+on EmployeeCity(Name)
+
+select * from EmployeeCity
+
+--- erinevused kahe indeksi vahel
+--- 1. ainult üks klastris olev indeks saab olla tabeli peale, 
+--- mitte-klastris olevaid indekseid saab olla mitu
+--- 2. klastris olevad indeksid on kiiremad kuna indeks peab tagasi viitama tabelile
+--- Juhul, kui selekteeritud veerg ei ole olemas indeksis
+--- 3. Klastris olev indeks määratleb ära tabeli ridade slavestusjärjestuse
+--- ja ei nõua kettal lisa ruumi. Samas mitte klastris olevad indeksid on 
+--- salvestatud tabelist eraldi ja nõuab lisa ruumi
+
+create table EmployeeFirstName
+(
+	Id int primary key,
+	FirstName nvarchar(50),
+	LastName nvarchar(50),
+	Salary int,
+	Gender nvarchar(10),
+	City nvarchar(50)
+)
+
+exec sp_helpindex EmployeeFirstName
+
+--
+insert into EmployeeFirstName values(1, 'Mike', 'Sandoz', 4500, 'Male', 'New York')
+insert into EmployeeFirstName values(1, 'John', 'Menco', 2500, 'Male', 'London')
+
+drop index EmployeeFirstName.PK__Employee__3214EC07D08136E4
+-- kui k'ivitad [levalpool oleva koodi, siis tuleb veateade,
+-- et SQL server kasutab UNIQUE indeksit j]ustamaks v''rtuste unikaalsust
+-- ja primaarvõtit. Koodiga unikaalseid indekseid ei saa kustutada, 
+-- aga käsitsi saab
+
+--sisestame uuesti need kaks koodirida andmeid
+
+--teeme unikaalse mitte-klastris oleva indeksi
+create unique nonclustered index UIX_EmployeeFirstnameLastname
+on EmployeeFirstName(FirstName, LastName)
+
+--kustutame tabeli andmed ära
+truncate table EmployeeFirstName
+
+insert into EmployeeFirstName values(1, 'Mike', 'Sandoz', 4500, 'Male', 'New York')
+insert into EmployeeFirstName values(2, 'John', 'Menco', 2500, 'Male', 'London')
+
+--lisame uue unikaalse piirangu tabelile
+alter table EmployeeFirstName
+add constraint UQ_EmployeeFirstName_City
+unique nonclustered(City)
+
+insert into EmployeeFirstName values(3, 'John', 'Menco', 3500, 'Male', 'London')
+
+-- saab vaadata indeksite nimekirja
+exec sp_helpconstraint EmployeeFirstName
+
+---
+-- 1.Vaikimisi primaarvõti loob unikaalse klastris oleva indeksi, samas unikaalne piirang
+-- loob unikaalse mitte-klastris oleva indeksi
+-- 2. Unikaalset indeksit või piirangut ei saa luua olemasolevasse tabelisse, kui tabel 
+-- juba sisaldab väärtusi võtmeveerus
+-- 3. Vaikimisi korduvaid väärtusied ei ole veerus lubatud,
+-- kui peaks olema unikaalne indeks või piirang. Nt, kui tahad sisestada 10 rida andmeid,
+-- millest 5 sisaldavad korduviad andmeid, siis kõik 10 lükatakse tagasi. Kui soovin ainult 5
+-- rea tagasi lükkamist ja ülejäänud 5 rea sisestamist, siis selleks kasutatakse IGNORE_DUP_KEY
+
+-- koodinäide:
+create unique index IX_EmployeeFirstName
+on EmployeeFirstName(City)
+with ignore_dup_key
+
+-- võtame maha indeksid ja võtmed
+insert into EmployeeFirstName values(3, 'John', 'Menco', 3512, 'Male', 'London')
+insert into EmployeeFirstName values(4, 'John', 'Menco', 3123, 'Male', 'London1')
+insert into EmployeeFirstName values(4, 'John', 'Menco', 3220, 'Male', 'London1')
+--- enne ignore käsku oleks kõik kolm rida tagasi lükatud, aga 
+--- nüüd läks keskmine rida läbi kuna linna nimi oli unikaalne
+
+select * from EmployeeFirstName
+
+--- View
+
+-- view on salvestatud SQL-i päring. Saab käsitleda ka virtuaalse tabelina
+
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+-- loome view
+create view vEmployeesByDepartment
+as
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+-- view p'ringu esile kutsumine
+select * from vEmployeesByDepartment
+
+-- view ei salvesta andmeid vaikimisi
+-- seda tasub võtta, kui salvestatud virtuaalse tabelina
+
+-- milleks vaja:
+-- saab kasutada andmebaasi skeemi keerukuse lihtsutamiseks,
+-- mitte IT-inimesele
+-- piiratud ligipääs andmetele, ei näe kõiki veerge
+
+-- teeme veeru, kus näeb ainult IT-töötajaid
+
+create view vITEmployeesInDepartment
+as
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+where Department.DepartmentName = 'IT'
+
+select * from vITEmployeesInDepartment
+
+select * from vEmployeesByDepartment
+where DepartmentName = 'IT'
+
+-- rida 1400
